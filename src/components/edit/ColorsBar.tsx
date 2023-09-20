@@ -5,11 +5,21 @@ import ColorItem from './ColorItem';
 interface Props {
   style?: StyleProp<ViewStyle>;
   colors: string[];
+  value: number;
   callbackColor?: (index: number) => void;
 }
 
-export default function ColorsBar({style, colors, callbackColor}: Props) {
+export default function ColorsBar({
+  style,
+  colors,
+  callbackColor,
+  value,
+}: Props) {
   const [currnentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    setCurrentIndex(value);
+  }, [value]);
 
   useEffect(() => {
     if (callbackColor) callbackColor(currnentIndex);

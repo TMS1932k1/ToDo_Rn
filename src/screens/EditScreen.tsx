@@ -24,19 +24,28 @@ interface Props {
 export default function EditScreen({navigation, route}: Props) {
   const colors: string[] = ['red', 'orange', 'green', 'blue'];
 
+  const [id, setId] = useState<string>();
   const [titleText, setTitleText] = useState('');
   const [subtitleText, setSubtitleText] = useState('');
   const [contentText, setContentText] = useState('');
   const [color, setColor] = useState(colors[0]);
-  const [image, setImage] = useState('');
-  const [noteUpdate, setNoteUpdate] = useState<Note>();
+  const [date, setDate] = useState(new Date().toISOString());
 
   const [isValided, setValided] = useState(false);
   const [isLoading, setLoading] = useState(false);
 
   useEffect(() => {
-    console.log(noteUpdate);
-  }, [noteUpdate]);
+    if (route!.params.type === 'Update Note') {
+      // Set init note's value
+      const note = route!.params.note!;
+      setId(note.id!);
+      setTitleText(note.title);
+      setSubtitleText(note.subtitle!);
+      setContentText(note.content);
+      setColor(note.color);
+      setDate(note.date);
+    }
+  }, [navigation, route]);
 
   useEffect(() => {
     const isChecked =
@@ -57,7 +66,6 @@ export default function EditScreen({navigation, route}: Props) {
         onHeaderRightHandler = onUpdateNote;
 
         const note = route!.params.note!;
-        setNoteUpdate(note);
       }
     }
 
@@ -86,15 +94,15 @@ export default function EditScreen({navigation, route}: Props) {
   ]);
 
   function onChangeTitle(text: string) {
-    setTitleText(text);
+    setTitleText(text.trim());
   }
 
   function onChangeSubtitle(text: string) {
-    setSubtitleText(text);
+    setSubtitleText(text.trim());
   }
 
   function onChangeContent(text: string) {
-    setContentText(text);
+    setContentText(text.trim());
   }
 
   function setColorPriority(index: number) {
@@ -103,9 +111,7 @@ export default function EditScreen({navigation, route}: Props) {
 
   function onAddNote() {
     setLoading(true);
-
     const account = auth().currentUser;
-    const now = new Date().toISOString();
     NoteQuery.addNote(
       {
         id: null,
@@ -113,7 +119,7 @@ export default function EditScreen({navigation, route}: Props) {
         subtitle: subtitleText,
         content: contentText,
         color: color,
-        date: now,
+        date: date,
       },
       account!.uid,
       isSuccess => {
@@ -123,11 +129,38 @@ export default function EditScreen({navigation, route}: Props) {
     );
   }
 
+  function onUpdateNote() {
+    setLoading(true);
+    const account = auth().currentUser;
+    NoteQuery.updateNote(
+      {
+        id: id!,
+        title: titleText,
+        subtitle: subtitleText,
+        content: contentText,
+        color: color,
+        date: date,
+      },
+      account!.uid,
+      isSuccess => {
+        if (isSuccess) navigation.pop();
+        setLoading(false);
+      },
+    );
+  }
+
+  function onDeleteNote() {
+    setLoading(true);
+    const account = auth().currentUser;
+    NoteQuery.deleteNote(id!, account!.uid, isSuccess => {
+      if (isSuccess) navigation.pop();
+      setLoading(false);
+    });
+  }
+
   function openCamera() {}
 
   function openGalary() {}
-
-  function onUpdateNote() {}
 
   return (
     <View style={[globalStyle.rootContainer]}>
@@ -143,6 +176,7 @@ export default function EditScreen({navigation, route}: Props) {
           style={globalStyle.marginTopLargeContainer}
           colors={colors}
           callbackColor={setColorPriority}
+          value={colors.indexOf(color)}
         />
         <LabelInput
           label="Subtitle (Option)"
@@ -150,6 +184,7 @@ export default function EditScreen({navigation, route}: Props) {
           placeHolder="Input note's subtitle"
           maxLength={50}
           onChangeText={onChangeSubtitle}
+          value={subtitleText}
         />
         <LabelInput
           label="Content"
@@ -159,6 +194,7 @@ export default function EditScreen({navigation, route}: Props) {
           numberOfLines={6}
           maxLength={300}
           onChangeText={onChangeContent}
+          value={contentText}
         />
         <View style={styles.moreContainer}>
           <Text style={[globalStyle.bodySmall, styles.more]}>Add picture:</Text>
@@ -167,8 +203,13 @@ export default function EditScreen({navigation, route}: Props) {
         </View>
       </View>
       <View style={styles.deleteContainer}>
-        {route!.params.type === 'Update Note' && (
-          <ElevationButton styleButton={styles.delete}>Delete</ElevationButton>
+        {isLoading && route!.params.type === 'Update Note' && (
+          <Loading size={'large'} color={MyColors.error} />
+        )}
+        {!isLoading && route!.params.type === 'Update Note' && (
+          <ElevationButton styleButton={styles.delete} onPress={onDeleteNote}>
+            Delete
+          </ElevationButton>
         )}
       </View>
     </View>
