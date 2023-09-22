@@ -11,12 +11,14 @@ import {
   LabelInput,
   Loading,
 } from '../components';
-import {MyColors} from '../constants';
+import {MyColors, MyImage} from '../constants';
 import {ImageQuery, NoteQuery} from '../repositories';
 import auth from '@react-native-firebase/auth';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {ImageView} from '../components';
 import {Image} from '../types/Image';
+import {isTablet} from '../utils';
+import {Note} from '../types/Note';
 
 interface Props {
   navigation: NativeStackNavigationProp<RootNavigatorParams, 'EditScreen'>;
@@ -33,8 +35,7 @@ export default function EditScreen({navigation, route}: Props) {
   const [color, setColor] = useState(colors[0]);
   const [date, setDate] = useState(new Date().toISOString());
   const [image, setImage] = useState<Image | null>();
-  const [oldImage, setOldImage] = useState<Image | null>();
-  const [isAddImg, setIsAdd] = useState(false);
+  const [note, setNote] = useState<Note | null>();
 
   const [isValided, setValided] = useState(false);
   const [isLoading, setLoading] = useState(false);
@@ -50,6 +51,7 @@ export default function EditScreen({navigation, route}: Props) {
       setColor(note.color);
       setDate(note.date);
       setImage(note.image);
+      setNote(note);
     }
   }, [navigation, route]);
 
@@ -94,9 +96,8 @@ export default function EditScreen({navigation, route}: Props) {
     color,
     contentText,
     image,
-    oldImage,
     date,
-    isAddImg,
+    note,
     isLoading,
     isValided,
   ]);
@@ -154,14 +155,14 @@ export default function EditScreen({navigation, route}: Props) {
     const account = auth().currentUser;
 
     // Remove old image
-    if (oldImage) {
-      await ImageQuery.removeImage(oldImage.name, account!.uid);
+    if (note?.image && image !== note?.image) {
+      await ImageQuery.removeImage(note!.image.name, account!.uid);
       console.log('Deleted!');
     }
 
     // Up new image
     var imageResult: Image | undefined;
-    if (image && isAddImg) {
+    if (image && image !== note?.image) {
       imageResult = await ImageQuery.upImage(
         image.url,
         image.name,
@@ -178,7 +179,7 @@ export default function EditScreen({navigation, route}: Props) {
         content: contentText,
         color: color,
         date: date,
-        image: imageResult,
+        image: imageResult ?? (image === note?.image ? note?.image : undefined),
       },
       account!.uid,
       isSuccess => {
@@ -191,8 +192,9 @@ export default function EditScreen({navigation, route}: Props) {
   async function onDeleteNote() {
     setLoading(true);
     const account = auth().currentUser;
-    if (image) {
-      await ImageQuery.removeImage(image.name, account!.uid);
+
+    if (note?.image) {
+      await ImageQuery.removeImage(note!.image.name, account!.uid);
       console.log('Deleted!');
     }
 
@@ -213,8 +215,6 @@ export default function EditScreen({navigation, route}: Props) {
       } else if (response.errorCode) {
         console.log(response.errorMessage);
       } else {
-        setOldImage(image);
-        setIsAdd(true);
         response.assets?.forEach(image => {
           setImage({url: image.uri, name: image.fileName} as Image);
         });
@@ -229,8 +229,6 @@ export default function EditScreen({navigation, route}: Props) {
       } else if (response.errorCode) {
         console.log(response.errorMessage);
       } else {
-        setOldImage(image);
-        setIsAdd(true);
         response.assets?.forEach(image => {
           setImage({url: image.uri, name: image.fileName} as Image);
         });
@@ -239,47 +237,56 @@ export default function EditScreen({navigation, route}: Props) {
   }
 
   return (
-    <View style={[globalStyle.rootContainer]}>
+    <View style={globalStyle.rootContainer}>
       <ScrollView>
-        <View style={styles.inputContainer}>
-          <LabelInput
-            value={titleText}
-            label="Title"
-            placeHolder="Input note's title"
-            maxLength={30}
-            onChangeText={onChangeTitle}
-          />
-          <ColorsBar
-            style={globalStyle.marginTopLargeContainer}
-            colors={colors}
-            callbackColor={setColorPriority}
-            value={colors.indexOf(color)}
-          />
-          <LabelInput
-            label="Subtitle (Option)"
-            style={globalStyle.marginTopLargeContainer}
-            placeHolder="Input note's subtitle"
-            maxLength={50}
-            onChangeText={onChangeSubtitle}
-            value={subtitleText}
-          />
-          <LabelInput
-            label="Content"
-            style={globalStyle.marginTopLargeContainer}
-            styleBorder={styles.contentInput}
-            placeHolder="Input content"
-            numberOfLines={6}
-            maxLength={300}
-            onChangeText={onChangeContent}
-            value={contentText}
-          />
-          {image && <ImageView uri={image.url} onDelete={removePic} />}
-          <View style={styles.moreContainer}>
-            <Text style={[globalStyle.bodySmall, styles.more]}>
-              Add picture:
-            </Text>
-            <IconButton icon="camera" onPress={openCamera} size={24} />
-            <IconButton icon="image" onPress={openGalary} size={24} />
+        <View style={styles.editContainer}>
+          {isTablet() && (
+            <View style={styles.imgContainer}>
+              <ImageView uri={image?.url} onDelete={removePic} />
+            </View>
+          )}
+          <View style={styles.inputContainer}>
+            <LabelInput
+              value={titleText}
+              label="Title"
+              placeHolder="Input note's title"
+              maxLength={30}
+              onChangeText={onChangeTitle}
+            />
+            <ColorsBar
+              style={globalStyle.marginTopLargeContainer}
+              colors={colors}
+              callbackColor={setColorPriority}
+              value={colors.indexOf(color)}
+            />
+            <LabelInput
+              label="Subtitle (Option)"
+              style={globalStyle.marginTopLargeContainer}
+              placeHolder="Input note's subtitle"
+              maxLength={50}
+              onChangeText={onChangeSubtitle}
+              value={subtitleText}
+            />
+            <LabelInput
+              label="Content"
+              style={globalStyle.marginTopLargeContainer}
+              styleBorder={styles.contentInput}
+              placeHolder="Input content"
+              numberOfLines={6}
+              maxLength={300}
+              onChangeText={onChangeContent}
+              value={contentText}
+            />
+            {image && !isTablet() && (
+              <ImageView uri={image.url} onDelete={removePic} />
+            )}
+            <View style={styles.moreContainer}>
+              <Text style={[globalStyle.bodySmall, styles.more]}>
+                Add picture:
+              </Text>
+              <IconButton icon="camera" onPress={openCamera} size={24} />
+              <IconButton icon="image" onPress={openGalary} size={24} />
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -298,8 +305,15 @@ export default function EditScreen({navigation, route}: Props) {
 }
 
 const styles = StyleSheet.create({
-  inputContainer: {
+  editContainer: {
     flex: 1,
+    flexDirection: 'row',
+  },
+  imgContainer: {
+    flex: 2,
+  },
+  inputContainer: {
+    flex: 3,
   },
   contentInput: {
     borderWidth: 1,

@@ -23,7 +23,7 @@ export default function ListNote({uid}: Props) {
       database()
         .ref(`/${uid}/notes`)
         .on('value', snapshot => {
-          if (snapshot.val()) {
+          if (snapshot) {
             var notesTemp: Note[] = [];
             snapshot.forEach(item => {
               notesTemp.push({
@@ -32,7 +32,7 @@ export default function ListNote({uid}: Props) {
                 color: item.child('color').val() as string,
                 content: item.child('content').val() as string,
                 subtitle: item.child('subtitle').val() as string,
-                date: item.child('subtitle').val() as string,
+                date: item.child('date').val() as string,
                 image: item.child('image').val() as Image,
               });
               return undefined;
@@ -94,6 +94,3 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
-function auth() {
-  throw new Error('Function not implemented.');
-}
