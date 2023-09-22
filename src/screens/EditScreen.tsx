@@ -1,4 +1,4 @@
-import {View, StyleSheet, Text} from 'react-native';
+import {View, StyleSheet, Text, ScrollView} from 'react-native';
 import {globalStyle} from '../styles/global';
 import {useEffect, useLayoutEffect, useState} from 'react';
 import {RouteProp} from '@react-navigation/native';
@@ -12,9 +12,11 @@ import {
   Loading,
 } from '../components';
 import {MyColors} from '../constants';
-import {NoteQuery} from '../repositories';
+import {ImageQuery, NoteQuery} from '../repositories';
 import auth from '@react-native-firebase/auth';
-import {Note} from '../types/Note';
+import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {ImageView} from '../components';
+import {Image} from '../types/Image';
 
 interface Props {
   navigation: NativeStackNavigationProp<RootNavigatorParams, 'EditScreen'>;
@@ -30,6 +32,8 @@ export default function EditScreen({navigation, route}: Props) {
   const [contentText, setContentText] = useState('');
   const [color, setColor] = useState(colors[0]);
   const [date, setDate] = useState(new Date().toISOString());
+  const [url, setUrl] = useState<string>();
+  const [image, setImage] = useState<Image | null>();
 
   const [isValided, setValided] = useState(false);
   const [isLoading, setLoading] = useState(false);
@@ -44,6 +48,7 @@ export default function EditScreen({navigation, route}: Props) {
       setContentText(note.content);
       setColor(note.color);
       setDate(note.date);
+      setUrl(note.url);
     }
   }, [navigation, route]);
 
@@ -89,37 +94,46 @@ export default function EditScreen({navigation, route}: Props) {
     subtitleText,
     color,
     contentText,
+    image,
+    date,
     isLoading,
     isValided,
   ]);
 
   function onChangeTitle(text: string) {
-    setTitleText(text.trim());
+    setTitleText(text);
   }
 
   function onChangeSubtitle(text: string) {
-    setSubtitleText(text.trim());
+    setSubtitleText(text);
   }
 
   function onChangeContent(text: string) {
-    setContentText(text.trim());
+    setContentText(text);
   }
 
   function setColorPriority(index: number) {
     setColor(colors[index]);
   }
 
-  function onAddNote() {
+  async function onAddNote() {
     setLoading(true);
     const account = auth().currentUser;
+    var url: string | undefined;
+
+    if (image) {
+      url = await ImageQuery.upImage(image.uri, image.name, account!.uid);
+    }
+
     NoteQuery.addNote(
       {
         id: null,
-        title: titleText,
-        subtitle: subtitleText,
-        content: contentText,
+        title: titleText.trim(),
+        subtitle: subtitleText.trim(),
+        content: contentText.trim(),
         color: color,
         date: date,
+        url: url ?? undefined,
       },
       account!.uid,
       isSuccess => {
@@ -158,50 +172,84 @@ export default function EditScreen({navigation, route}: Props) {
     });
   }
 
-  function openCamera() {}
+  function removePic() {
+    setImage(null);
+  }
 
-  function openGalary() {}
+  async function openCamera() {
+    await launchCamera({mediaType: 'photo', saveToPhotos: true}, response => {
+      if (response.didCancel) {
+        console.log('Cancle image picked');
+      } else if (response.errorCode) {
+        console.log(response.errorMessage);
+      } else {
+        response.assets?.forEach(image => {
+          setImage({uri: image.uri, name: image.fileName} as Image);
+        });
+      }
+    });
+  }
+
+  async function openGalary() {
+    await launchImageLibrary({mediaType: 'photo'}, response => {
+      if (response.didCancel) {
+        console.log('Cancle image picked');
+      } else if (response.errorCode) {
+        console.log(response.errorMessage);
+      } else {
+        response.assets?.forEach(image => {
+          setImage({uri: image.uri, name: image.fileName} as Image);
+        });
+      }
+    });
+  }
 
   return (
     <View style={[globalStyle.rootContainer]}>
-      <View style={styles.inputContainer}>
-        <LabelInput
-          value={titleText}
-          label="Title"
-          placeHolder="Input note's title"
-          maxLength={30}
-          onChangeText={onChangeTitle}
-        />
-        <ColorsBar
-          style={globalStyle.marginTopLargeContainer}
-          colors={colors}
-          callbackColor={setColorPriority}
-          value={colors.indexOf(color)}
-        />
-        <LabelInput
-          label="Subtitle (Option)"
-          style={globalStyle.marginTopLargeContainer}
-          placeHolder="Input note's subtitle"
-          maxLength={50}
-          onChangeText={onChangeSubtitle}
-          value={subtitleText}
-        />
-        <LabelInput
-          label="Content"
-          style={globalStyle.marginTopLargeContainer}
-          styleBorder={styles.contentInput}
-          placeHolder="Input content"
-          numberOfLines={6}
-          maxLength={300}
-          onChangeText={onChangeContent}
-          value={contentText}
-        />
-        <View style={styles.moreContainer}>
-          <Text style={[globalStyle.bodySmall, styles.more]}>Add picture:</Text>
-          <IconButton icon="camera" onPress={openCamera} size={24} />
-          <IconButton icon="image" onPress={openGalary} size={24} />
+      <ScrollView>
+        <View style={styles.inputContainer}>
+          <LabelInput
+            value={titleText}
+            label="Title"
+            placeHolder="Input note's title"
+            maxLength={30}
+            onChangeText={onChangeTitle}
+          />
+          <ColorsBar
+            style={globalStyle.marginTopLargeContainer}
+            colors={colors}
+            callbackColor={setColorPriority}
+            value={colors.indexOf(color)}
+          />
+          <LabelInput
+            label="Subtitle (Option)"
+            style={globalStyle.marginTopLargeContainer}
+            placeHolder="Input note's subtitle"
+            maxLength={50}
+            onChangeText={onChangeSubtitle}
+            value={subtitleText}
+          />
+          <LabelInput
+            label="Content"
+            style={globalStyle.marginTopLargeContainer}
+            styleBorder={styles.contentInput}
+            placeHolder="Input content"
+            numberOfLines={6}
+            maxLength={300}
+            onChangeText={onChangeContent}
+            value={contentText}
+          />
+          {image && <ImageView uri={image.uri} onDelete={removePic} />}
+          {url && !image && <ImageView uri={url} />}
+          <View style={styles.moreContainer}>
+            <Text style={[globalStyle.bodySmall, styles.more]}>
+              Add picture:
+            </Text>
+            <IconButton icon="camera" onPress={openCamera} size={24} />
+            <IconButton icon="image" onPress={openGalary} size={24} />
+          </View>
         </View>
-      </View>
+      </ScrollView>
       <View style={styles.deleteContainer}>
         {isLoading && route!.params.type === 'Update Note' && (
           <Loading size={'large'} color={MyColors.error} />

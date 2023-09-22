@@ -12,6 +12,7 @@ import LabelInput from './comon/LabelInput';
 import ColorItem from './edit/ColorItem';
 import ColorsBar from './edit/ColorsBar';
 import NoteItem from './home/NoteItem';
+import ImageView from './edit/ImageView';
 
 export {
   InputField,
@@ -28,4 +29,5 @@ export {
   ColorsBar,
   ColorItem,
   NoteItem,
+  ImageView,
 };

@@ -5,4 +5,5 @@ export type Note = {
   content: string;
   color: string;
   date: string;
+  url?: string;
 };

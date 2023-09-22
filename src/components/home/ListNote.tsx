@@ -31,6 +31,7 @@ export default function ListNote({uid}: Props) {
                 content: item.child('content').val() as string,
                 subtitle: item.child('subtitle').val() as string,
                 date: item.child('subtitle').val() as string,
+                url: item.child('url').val() as string,
               });
               return undefined;
             });
