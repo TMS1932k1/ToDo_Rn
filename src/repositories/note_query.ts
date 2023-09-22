@@ -32,6 +32,7 @@ export const NoteQuery = {
             content: note.content,
             color: note.color,
             date: note.date,
+            image: note.image,
           },
           error => {
             if (onCompleted)

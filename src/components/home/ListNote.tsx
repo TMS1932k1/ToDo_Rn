@@ -5,6 +5,8 @@ import {Note} from '../../types/Note';
 import {globalStyle} from '../../styles/global';
 import NoteItem from './NoteItem';
 import {NavigationContext} from '@react-navigation/native';
+import {Image} from '../../types/Image';
+import InputField from '../comon/InputField';
 
 interface Props {
   uid: string;
@@ -14,13 +16,13 @@ export default function ListNote({uid}: Props) {
   const navigation = useContext(NavigationContext);
 
   const [notes, setNotes] = useState<Note[]>([]);
+  const [notesSearch, setNotesSearch] = useState<Note[]>([]);
 
   useEffect(() => {
     try {
       database()
         .ref(`/${uid}/notes`)
         .on('value', snapshot => {
-          console.log(snapshot.val());
           if (snapshot.val()) {
             var notesTemp: Note[] = [];
             snapshot.forEach(item => {
@@ -31,11 +33,12 @@ export default function ListNote({uid}: Props) {
                 content: item.child('content').val() as string,
                 subtitle: item.child('subtitle').val() as string,
                 date: item.child('subtitle').val() as string,
-                url: item.child('url').val() as string,
+                image: item.child('image').val() as Image,
               });
               return undefined;
             });
             setNotes(notesTemp.reverse());
+            setNotesSearch(notesTemp.reverse());
           } else {
             console.log('No have value');
           }
@@ -52,17 +55,29 @@ export default function ListNote({uid}: Props) {
     });
   }
 
+  function onSearch(text: string) {
+    const searchNotes = notes.filter(value =>
+      value.title.toLocaleLowerCase().includes(text.toLocaleLowerCase()),
+    );
+    setNotesSearch(searchNotes);
+  }
+
   return (
     <View style={globalStyle.rootContainer}>
-      {notes.length <= 0 && (
+      <InputField
+        placeHolder="Enter note's title to search note"
+        onChange={onSearch}
+        keyboardType="default"
+      />
+      {notesSearch.length <= 0 && (
         <View style={[globalStyle.rootContainer, styles.center]}>
           <Text>Note list is empty</Text>
         </View>
       )}
-      {notes.length > 0 && (
+      {notesSearch.length > 0 && (
         <View style={globalStyle.rootContainer}>
           <FlatList
-            data={notes}
+            data={notesSearch}
             renderItem={({item}) => (
               <NoteItem note={item} onPress={() => onClickNote(item)} />
             )}

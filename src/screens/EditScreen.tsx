@@ -32,8 +32,9 @@ export default function EditScreen({navigation, route}: Props) {
   const [contentText, setContentText] = useState('');
   const [color, setColor] = useState(colors[0]);
   const [date, setDate] = useState(new Date().toISOString());
-  const [url, setUrl] = useState<string>();
   const [image, setImage] = useState<Image | null>();
+  const [oldImage, setOldImage] = useState<Image | null>();
+  const [isAddImg, setIsAdd] = useState(false);
 
   const [isValided, setValided] = useState(false);
   const [isLoading, setLoading] = useState(false);
@@ -48,7 +49,7 @@ export default function EditScreen({navigation, route}: Props) {
       setContentText(note.content);
       setColor(note.color);
       setDate(note.date);
-      setUrl(note.url);
+      setImage(note.image);
     }
   }, [navigation, route]);
 
@@ -69,8 +70,6 @@ export default function EditScreen({navigation, route}: Props) {
 
       if (route!.params.type === 'Update Note') {
         onHeaderRightHandler = onUpdateNote;
-
-        const note = route!.params.note!;
       }
     }
 
@@ -95,7 +94,9 @@ export default function EditScreen({navigation, route}: Props) {
     color,
     contentText,
     image,
+    oldImage,
     date,
+    isAddImg,
     isLoading,
     isValided,
   ]);
@@ -119,10 +120,15 @@ export default function EditScreen({navigation, route}: Props) {
   async function onAddNote() {
     setLoading(true);
     const account = auth().currentUser;
-    var url: string | undefined;
 
+    // Up new image
+    var imageResult: Image | undefined;
     if (image) {
-      url = await ImageQuery.upImage(image.uri, image.name, account!.uid);
+      imageResult = await ImageQuery.upImage(
+        image.url,
+        image.name,
+        account!.uid,
+      );
     }
 
     NoteQuery.addNote(
@@ -133,7 +139,7 @@ export default function EditScreen({navigation, route}: Props) {
         content: contentText.trim(),
         color: color,
         date: date,
-        url: url ?? undefined,
+        image: imageResult,
       },
       account!.uid,
       isSuccess => {
@@ -143,9 +149,27 @@ export default function EditScreen({navigation, route}: Props) {
     );
   }
 
-  function onUpdateNote() {
+  async function onUpdateNote() {
     setLoading(true);
     const account = auth().currentUser;
+
+    // Remove old image
+    if (oldImage) {
+      await ImageQuery.removeImage(oldImage.name, account!.uid);
+      console.log('Deleted!');
+    }
+
+    // Up new image
+    var imageResult: Image | undefined;
+    if (image && isAddImg) {
+      imageResult = await ImageQuery.upImage(
+        image.url,
+        image.name,
+        account!.uid,
+      );
+      console.log('Updated!');
+    }
+
     NoteQuery.updateNote(
       {
         id: id!,
@@ -154,6 +178,7 @@ export default function EditScreen({navigation, route}: Props) {
         content: contentText,
         color: color,
         date: date,
+        image: imageResult,
       },
       account!.uid,
       isSuccess => {
@@ -163,9 +188,14 @@ export default function EditScreen({navigation, route}: Props) {
     );
   }
 
-  function onDeleteNote() {
+  async function onDeleteNote() {
     setLoading(true);
     const account = auth().currentUser;
+    if (image) {
+      await ImageQuery.removeImage(image.name, account!.uid);
+      console.log('Deleted!');
+    }
+
     NoteQuery.deleteNote(id!, account!.uid, isSuccess => {
       if (isSuccess) navigation.pop();
       setLoading(false);
@@ -183,8 +213,10 @@ export default function EditScreen({navigation, route}: Props) {
       } else if (response.errorCode) {
         console.log(response.errorMessage);
       } else {
+        setOldImage(image);
+        setIsAdd(true);
         response.assets?.forEach(image => {
-          setImage({uri: image.uri, name: image.fileName} as Image);
+          setImage({url: image.uri, name: image.fileName} as Image);
         });
       }
     });
@@ -197,8 +229,10 @@ export default function EditScreen({navigation, route}: Props) {
       } else if (response.errorCode) {
         console.log(response.errorMessage);
       } else {
+        setOldImage(image);
+        setIsAdd(true);
         response.assets?.forEach(image => {
-          setImage({uri: image.uri, name: image.fileName} as Image);
+          setImage({url: image.uri, name: image.fileName} as Image);
         });
       }
     });
@@ -239,8 +273,7 @@ export default function EditScreen({navigation, route}: Props) {
             onChangeText={onChangeContent}
             value={contentText}
           />
-          {image && <ImageView uri={image.uri} onDelete={removePic} />}
-          {url && !image && <ImageView uri={url} />}
+          {image && <ImageView uri={image.url} onDelete={removePic} />}
           <View style={styles.moreContainer}>
             <Text style={[globalStyle.bodySmall, styles.more]}>
               Add picture:

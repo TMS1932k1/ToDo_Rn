@@ -1,4 +1,4 @@
-import {Header, InputField, ListNote} from '../components';
+import {Header, ListNote} from '../components';
 import auth from '@react-native-firebase/auth';
 import {StyleSheet, View} from 'react-native';
 import {RootNavigatorParams} from '../navigations/RootNavigator';
@@ -31,11 +31,6 @@ export default function HomeScreen({navigation}: Props) {
   return (
     <View style={styles.container}>
       <Header onSignOut={signOut} onAddNote={addNote} />
-      <InputField
-        placeHolder="Enter note's title to search note"
-        onChange={text => {}}
-        keyboardType="default"
-      />
       <ListNote uid={auth().currentUser!.uid} />
     </View>
   );

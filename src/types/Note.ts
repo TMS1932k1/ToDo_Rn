@@ -1,3 +1,5 @@
+import {Image} from './Image';
+
 export type Note = {
   id: string | null;
   title: string;
@@ -5,5 +7,5 @@ export type Note = {
   content: string;
   color: string;
   date: string;
-  url?: string;
+  image?: Image;
 };
